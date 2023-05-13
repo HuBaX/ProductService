@@ -1,0 +1,7 @@
+version: 1
+packages:
+  - path: "datahandling"
+    name: "datahandling"
+    engine: "mysql"
+    schema: "schema.sql"
+    queries: "query.sql"
