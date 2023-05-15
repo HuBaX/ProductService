@@ -68,3 +68,13 @@ var ErrNoSearchParamSet = apiError{
 	Msg:    "None of the search parameters is set",
 	Status: http.StatusBadRequest,
 }
+
+var ErrNegativePrice = apiError{
+	Msg:    "Negative prices are invalid!",
+	Status: http.StatusBadRequest,
+}
+
+var ErrAlreadyExists = apiError{
+	Msg:    "The object you want to add already exists!",
+	Status: http.StatusBadRequest,
+}

@@ -40,6 +40,15 @@ func (q *Queries) DelProduct(ctx context.Context, id int32) error {
 	return err
 }
 
+const delProductsByCategory = `-- name: DelProductsByCategory :exec
+DELETE FROM product WHERE category_id=?
+`
+
+func (q *Queries) DelProductsByCategory(ctx context.Context, categoryID int32) error {
+	_, err := q.db.ExecContext(ctx, delProductsByCategory, categoryID)
+	return err
+}
+
 const getProduct = `-- name: GetProduct :one
 SELECT id, details, name, price, category_id FROM product WHERE id=?
 `
@@ -121,4 +130,15 @@ func (q *Queries) GetProducts(ctx context.Context) ([]Product, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const productExists = `-- name: ProductExists :one
+SELECT EXISTS(SELECT id, details, name, price, category_id FROM product WHERE name=?)
+`
+
+func (q *Queries) ProductExists(ctx context.Context, name string) (bool, error) {
+	row := q.db.QueryRowContext(ctx, productExists, name)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
