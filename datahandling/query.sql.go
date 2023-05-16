@@ -131,14 +131,3 @@ func (q *Queries) GetProducts(ctx context.Context) ([]Product, error) {
 	}
 	return items, nil
 }
-
-const productExists = `-- name: ProductExists :one
-SELECT EXISTS(SELECT id, details, name, price, category_id FROM product WHERE name=?)
-`
-
-func (q *Queries) ProductExists(ctx context.Context, name string) (bool, error) {
-	row := q.db.QueryRowContext(ctx, productExists, name)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
-}

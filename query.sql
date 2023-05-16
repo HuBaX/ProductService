@@ -14,8 +14,5 @@ SELECT * FROM product WHERE name=?;
 -- name: DelProduct :exec
 DELETE FROM product WHERE id=?;
 
--- name: ProductExists :one
-SELECT EXISTS(SELECT * FROM product WHERE name=?);
-
 -- name: DelProductsByCategory :exec
 DELETE FROM product WHERE category_id=?;

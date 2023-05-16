@@ -44,11 +44,6 @@ var ErrIDNegative = apiError{
 	Status: http.StatusBadRequest,
 }
 
-var ErrNameNotSet = apiError{
-	Msg:    "The product name to be searched for is empty!",
-	Status: http.StatusBadRequest,
-}
-
 var ErrRequestFailed = apiError{
 	Msg:    "The request failed to execute!",
 	Status: http.StatusInternalServerError,
@@ -64,17 +59,12 @@ var ErrRowScan = apiError{
 	Status: http.StatusInternalServerError,
 }
 
-var ErrNoSearchParamSet = apiError{
-	Msg:    "None of the search parameters is set",
-	Status: http.StatusBadRequest,
-}
-
 var ErrNegativePrice = apiError{
 	Msg:    "Negative prices are invalid!",
 	Status: http.StatusBadRequest,
 }
 
-var ErrAlreadyExists = apiError{
-	Msg:    "The object you want to add already exists!",
-	Status: http.StatusBadRequest,
+var ErrStrToFloat = apiError{
+	Msg:    "The string couldn't be converted to a float!",
+	Status: http.StatusInternalServerError,
 }
