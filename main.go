@@ -291,15 +291,26 @@ func handleGetProductsBySearchValues(ctx context.Context, db *sql.DB, queries *d
 		minPriceStr := query.Get("minPrice")
 		maxPriceStr := query.Get("maxPrice")
 
+		hostname, err := os.Hostname()
+		if err != nil {
+			setError(w, ErrHostname, err.Error())
+			return
+		}
+		apiResponse := ApiResponse{Hostname: hostname}
+
 		//return all Products
 		if details == "" && minPriceStr == "" && maxPriceStr == "" {
-			productMap, apiErr := queryAllProducts(ctx, queries)
+			products, apiErr := queryAllProducts(ctx, queries)
 			if apiErr != nil {
 				setError(w, *apiErr, "")
 				return
 			}
+			prodResponse := ProductsResponse{
+				Products:    products,
+				ApiResponse: apiResponse,
+			}
 
-			err := writeJSONResponse(w, http.StatusOK, productMap)
+			err := writeJSONResponse(w, http.StatusOK, prodResponse)
 			if err != nil {
 				setError(w, ErrWriteJSON, err.Error())
 				return
@@ -312,13 +323,6 @@ func handleGetProductsBySearchValues(ctx context.Context, db *sql.DB, queries *d
 			setError(w, *apiErr, "")
 			return
 		}
-
-		hostname, err := os.Hostname()
-		if err != nil {
-			setError(w, ErrHostname, err.Error())
-			return
-		}
-		apiResponse := ApiResponse{Hostname: hostname}
 
 		prodResponse := ProductsResponse{
 			Products:    products,
