@@ -68,3 +68,8 @@ var ErrStrToFloat = apiError{
 	Msg:    "The string couldn't be converted to a float!",
 	Status: http.StatusInternalServerError,
 }
+
+var ErrHostname = apiError{
+	Msg:    "Couldn't access host name!",
+	Status: http.StatusInternalServerError,
+}

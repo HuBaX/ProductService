@@ -15,6 +15,20 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
+type ApiResponse struct {
+	Hostname string `json:"hostname"`
+}
+
+type ProductResponse struct {
+	Product     datahandling.Product `json:"product"`
+	ApiResponse ApiResponse          `json:"apiresponse"`
+}
+
+type ProductsResponse struct {
+	Products    []datahandling.Product `json:"products"`
+	ApiResponse ApiResponse            `json:"apiresponse"`
+}
+
 func main() {
 	dbUser := os.Getenv("MYSQL_USER")
 	dbAddr := os.Getenv("MYSQL_ADDRESS")
@@ -54,7 +68,7 @@ func handleAddProduct(ctx context.Context, queries *datahandling.Queries) http.H
 		err := readJSON(r, &nameJSON)
 		defer r.Body.Close()
 		if err != nil {
-			setError(w, ErrReadJSON)
+			setError(w, ErrReadJSON, err.Error())
 			return
 		}
 
@@ -73,19 +87,29 @@ func handleAddProduct(ctx context.Context, queries *datahandling.Queries) http.H
 		resp, err := http.Get("http://category-service:8081/getCategory?id=" + strconv.Itoa(int(catId)))
 
 		if err != nil {
-			setError(w, ErrRequestFailed)
+			setError(w, ErrRequestFailed, err.Error())
 			return
 		}
 
 		if resp.StatusCode == http.StatusOK {
-			_, err = queries.AddProduct(ctx, product)
+			err = queries.AddProduct(ctx, product)
 			if err != nil {
-				setError(w, ErrQueryDatabase)
+				setError(w, ErrQueryDatabase, err.Error())
 				return
 			}
 		}
 
-		w.WriteHeader(http.StatusOK)
+		hostname, err := os.Hostname()
+		if err != nil {
+			setError(w, ErrHostname, err.Error())
+			return
+		}
+		apiResponse := ApiResponse{Hostname: hostname}
+
+		err = writeJSONResponse(w, http.StatusOK, apiResponse)
+		if err != nil {
+			setError(w, ErrWriteJSON, err.Error())
+		}
 	}
 }
 
@@ -94,25 +118,37 @@ func handleGetProductById(ctx context.Context, queries *datahandling.Queries) ht
 		idStr := r.URL.Query().Get("id")
 
 		if idStr == "" {
-			setError(w, ErrIDNotSet)
+			setError(w, ErrIDNotSet, "")
 			return
 		}
 
 		id, err := strconv.Atoi(idStr)
 		if err != nil {
-			setError(w, ErrStrToInt)
+			setError(w, ErrStrToInt, err.Error())
 			return
 		}
 
 		product, err := queries.GetProduct(ctx, int32(id))
 		if err != nil {
-			setError(w, ErrQueryDatabase)
+			setError(w, ErrQueryDatabase, err.Error())
 			return
 		}
 
-		err = writeJSONResponse(w, http.StatusOK, product)
+		hostname, err := os.Hostname()
 		if err != nil {
-			setError(w, ErrWriteJSON)
+			setError(w, ErrHostname, err.Error())
+			return
+		}
+		apiResponse := ApiResponse{Hostname: hostname}
+
+		prodResponse := ProductResponse{
+			Product:     product,
+			ApiResponse: apiResponse,
+		}
+
+		err = writeJSONResponse(w, http.StatusOK, prodResponse)
+		if err != nil {
+			setError(w, ErrWriteJSON, err.Error())
 			return
 		}
 	}
@@ -120,15 +156,27 @@ func handleGetProductById(ctx context.Context, queries *datahandling.Queries) ht
 
 func handleGetProducts(ctx context.Context, queries *datahandling.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		productMap, apiErr := queryAllProducts(ctx, queries)
+		products, apiErr := queryAllProducts(ctx, queries)
 		if apiErr != nil {
-			setError(w, *apiErr)
+			setError(w, *apiErr, "")
 			return
 		}
 
-		err := writeJSONResponse(w, http.StatusOK, productMap)
+		hostname, err := os.Hostname()
 		if err != nil {
-			setError(w, ErrWriteJSON)
+			setError(w, ErrHostname, err.Error())
+			return
+		}
+		apiResponse := ApiResponse{Hostname: hostname}
+
+		prodResponse := ProductsResponse{
+			Products:    products,
+			ApiResponse: apiResponse,
+		}
+
+		err = writeJSONResponse(w, http.StatusOK, prodResponse)
+		if err != nil {
+			setError(w, ErrWriteJSON, err.Error())
 		}
 	}
 }
@@ -140,18 +188,26 @@ func handleGetProductByName(ctx context.Context, queries *datahandling.Queries) 
 		products := make([]datahandling.Product, 0)
 		queriedProducts, err := queries.GetProductByName(ctx, name)
 		if err != nil {
-			setError(w, ErrQueryDatabase)
+			setError(w, ErrQueryDatabase, err.Error())
 			return
 		}
 		products = append(products, queriedProducts...)
 
-		productMap := map[string][]datahandling.Product{
-			"products": products,
+		hostname, err := os.Hostname()
+		if err != nil {
+			setError(w, ErrHostname, err.Error())
+			return
+		}
+		apiResponse := ApiResponse{Hostname: hostname}
+
+		prodResponse := ProductsResponse{
+			Products:    products,
+			ApiResponse: apiResponse,
 		}
 
-		err = writeJSONResponse(w, http.StatusOK, productMap)
+		err = writeJSONResponse(w, http.StatusOK, prodResponse)
 		if err != nil {
-			setError(w, ErrWriteJSON)
+			setError(w, ErrWriteJSON, err.Error())
 		}
 	}
 }
@@ -159,34 +215,45 @@ func handleGetProductByName(ctx context.Context, queries *datahandling.Queries) 
 func handleDelProductById(ctx context.Context, queries *datahandling.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
-			setError(w, ErrMethodNotAllowed)
+			setError(w, ErrMethodNotAllowed, "")
 			return
 		}
 
 		idStr := r.URL.Query().Get("id")
 
 		if idStr == "" {
-			setError(w, ErrIDNotSet)
+			setError(w, ErrIDNotSet, "")
 			return
 		}
 
 		id, err := strconv.Atoi(idStr)
 		if err != nil {
-			setError(w, ErrStrToInt)
+			setError(w, ErrStrToInt, "")
 			return
 		}
 
 		if id < 0 {
-			setError(w, ErrIDNegative)
+			setError(w, ErrIDNegative, "")
 			return
 		}
 
 		err = queries.DelProduct(ctx, int32(id))
 		if err != nil {
-			setError(w, ErrQueryDatabase)
+			setError(w, ErrQueryDatabase, err.Error())
 			return
 		}
-		w.WriteHeader(http.StatusOK)
+
+		hostname, err := os.Hostname()
+		if err != nil {
+			setError(w, ErrHostname, err.Error())
+			return
+		}
+		apiResponse := ApiResponse{Hostname: hostname}
+
+		err = writeJSONResponse(w, http.StatusOK, apiResponse)
+		if err != nil {
+			setError(w, ErrWriteJSON, err.Error())
+		}
 	}
 }
 
@@ -195,16 +262,26 @@ func handleDelProductByCategoryId(ctx context.Context, queries *datahandling.Que
 		idStr := r.URL.Query().Get("id")
 		id, err := strconv.Atoi(idStr)
 		if err != nil {
-			setError(w, ErrStrToInt)
+			setError(w, ErrStrToInt, err.Error())
 			return
 		}
 
 		err = queries.DelProductsByCategory(ctx, int32(id))
 		if err != nil {
-			setError(w, ErrQueryDatabase)
+			setError(w, ErrQueryDatabase, err.Error())
 			return
 		}
-		w.WriteHeader(http.StatusOK)
+		hostname, err := os.Hostname()
+		if err != nil {
+			setError(w, ErrHostname, err.Error())
+			return
+		}
+		apiResponse := ApiResponse{Hostname: hostname}
+
+		err = writeJSONResponse(w, http.StatusOK, apiResponse)
+		if err != nil {
+			setError(w, ErrWriteJSON, err.Error())
+		}
 	}
 }
 func handleGetProductsBySearchValues(ctx context.Context, db *sql.DB, queries *datahandling.Queries) http.HandlerFunc {
@@ -218,32 +295,44 @@ func handleGetProductsBySearchValues(ctx context.Context, db *sql.DB, queries *d
 		if details == "" && minPriceStr == "" && maxPriceStr == "" {
 			productMap, apiErr := queryAllProducts(ctx, queries)
 			if apiErr != nil {
-				setError(w, *apiErr)
+				setError(w, *apiErr, "")
 				return
 			}
 
 			err := writeJSONResponse(w, http.StatusOK, productMap)
 			if err != nil {
-				setError(w, ErrWriteJSON)
+				setError(w, ErrWriteJSON, err.Error())
 				return
 			}
 			return
 		}
 
-		productMap, apiErr := searchProducts(minPriceStr, maxPriceStr, details, db)
+		products, apiErr := searchProducts(minPriceStr, maxPriceStr, details, db)
 		if apiErr != nil {
-			setError(w, *apiErr)
+			setError(w, *apiErr, "")
 			return
 		}
 
-		err := writeJSONResponse(w, http.StatusOK, productMap)
+		hostname, err := os.Hostname()
 		if err != nil {
-			setError(w, ErrWriteJSON)
+			setError(w, ErrHostname, err.Error())
+			return
+		}
+		apiResponse := ApiResponse{Hostname: hostname}
+
+		prodResponse := ProductsResponse{
+			Products:    products,
+			ApiResponse: apiResponse,
+		}
+
+		err = writeJSONResponse(w, http.StatusOK, prodResponse)
+		if err != nil {
+			setError(w, ErrWriteJSON, err.Error())
 		}
 	}
 }
 
-func queryAllProducts(ctx context.Context, queries *datahandling.Queries) (map[string][]datahandling.Product, *apiError) {
+func queryAllProducts(ctx context.Context, queries *datahandling.Queries) ([]datahandling.Product, *apiError) {
 	products := make([]datahandling.Product, 0)
 
 	queriedProducts, err := queries.GetProducts(ctx)
@@ -253,13 +342,10 @@ func queryAllProducts(ctx context.Context, queries *datahandling.Queries) (map[s
 
 	products = append(products, queriedProducts...)
 
-	productMap := map[string][]datahandling.Product{
-		"products": products,
-	}
-	return productMap, nil
+	return products, nil
 }
 
-func searchProducts(minPriceStr, maxPriceStr, details string, db *sql.DB) (map[string][]datahandling.Product, *apiError) {
+func searchProducts(minPriceStr, maxPriceStr, details string, db *sql.DB) ([]datahandling.Product, *apiError) {
 	sql := "SELECT * FROM product WHERE 1=1"
 	args := []any{}
 
@@ -306,10 +392,7 @@ func searchProducts(minPriceStr, maxPriceStr, details string, db *sql.DB) (map[s
 	}
 	products = append(products, queriedProducts...)
 
-	productMap := map[string][]datahandling.Product{
-		"products": products,
-	}
-	return productMap, nil
+	return products, nil
 }
 
 func parsePrice(priceStr string) (*float64, *apiError) {
@@ -348,8 +431,9 @@ func readJSON(r *http.Request, value *map[string]any) error {
 	return json.NewDecoder(r.Body).Decode(value)
 }
 
-func setError(w http.ResponseWriter, err apiError) {
+func setError(w http.ResponseWriter, err apiError, returnedErrMsg string) {
 	fmt.Println(err.Msg)
+	fmt.Println(returnedErrMsg)
 	w.WriteHeader(err.Status)
 	w.Write([]byte(err.Msg))
 }

@@ -1,4 +1,4 @@
--- name: AddProduct :execresult
+-- name: AddProduct :exec
 INSERT INTO product(details, name, price, category_id)
  VALUES(?, ?, ?, ?);
 

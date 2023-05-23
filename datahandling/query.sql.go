@@ -7,10 +7,9 @@ package datahandling
 
 import (
 	"context"
-	"database/sql"
 )
 
-const addProduct = `-- name: AddProduct :execresult
+const addProduct = `-- name: AddProduct :exec
 INSERT INTO product(details, name, price, category_id)
  VALUES(?, ?, ?, ?)
 `
@@ -22,13 +21,14 @@ type AddProductParams struct {
 	CategoryID int32
 }
 
-func (q *Queries) AddProduct(ctx context.Context, arg AddProductParams) (sql.Result, error) {
-	return q.db.ExecContext(ctx, addProduct,
+func (q *Queries) AddProduct(ctx context.Context, arg AddProductParams) error {
+	_, err := q.db.ExecContext(ctx, addProduct,
 		arg.Details,
 		arg.Name,
 		arg.Price,
 		arg.CategoryID,
 	)
+	return err
 }
 
 const delProduct = `-- name: DelProduct :exec
